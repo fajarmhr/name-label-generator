@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(python -c \":*)",
+      "Bash(rm -f Cinzel-Bold.ttf)",
+      "Bash(python -m otf2ttf Cinzel-Bold.otf -o Cinzel-Bold.ttf)"
+    ]
+  }
+}

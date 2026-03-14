@@ -1,0 +1,35 @@
+# Output PDF
+output/*.pdf
+
+# Input Excel files (data pribadi, jangan diupload)
+input/*.xlsx
+input/*.xls
+
+# Kecuali file template (referensi format)
+!input/Template Daftar Tamu Undangan.xlsx
+
+# Cached corner images (auto-generated dari img_template.png)
+corners/
+
+# Converted font (auto-generated dari .otf)
+CinzelDecorative-Regular.ttf
+Cinzel-Bold.ttf
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
