@@ -24,24 +24,29 @@ TEMPLATE_IMG  = "img_template.png"
 FONT_TTF      = "CinzelDecorative-Regular.ttf"
 FONT_OTF      = "CinzelDecorative-Regular.otf"
 
-# Page: 210mm x 152mm landscape
+# Page: A4 portrait (210mm x 297mm)
 PAGE_W = 210 * mm
-PAGE_H = 152 * mm
+PAGE_H = 297 * mm
 
 COLS     = 3
-ROWS     = 4
-TAGS_PER = COLS * ROWS
+ROWS     = 7
+TAGS_PER = COLS * ROWS   # 21 labels per halaman
 
-MARGIN = 2 * mm
-GAP_H  = 2 * mm
-GAP_V  = 2 * mm
+# Label: 2.5" x 1.5" (63.5mm x 38.1mm)
+TAG_W = 63.5 * mm
+TAG_H = 38.1 * mm
 
-TAG_W = 67 * mm
-TAG_H = 36 * mm
+# Margin halaman (pinggir kertas) — lebih besar supaya aman saat print
+PAGE_MARGIN_H = 7 * mm    # margin kiri & kanan
+PAGE_MARGIN_V = 8 * mm    # margin atas & bawah
+
+# Gap antar nametag — lebih kecil supaya margin halaman bisa lebih lega
+GAP_H = (PAGE_W - 2 * PAGE_MARGIN_H - COLS * TAG_W) / (COLS - 1)   # gap horizontal
+GAP_V = (PAGE_H - 2 * PAGE_MARGIN_V - ROWS * TAG_H) / (ROWS - 1)   # gap vertikal
 
 # Corner ornament size on the name tag
-CORNER_W = 16 * mm
-CORNER_H = 14 * mm
+CORNER_W = 18 * mm
+CORNER_H = 16 * mm
 
 # Colors — monochrome black on white
 COLOR_BG           = HexColor("#FFFFFF")
@@ -188,8 +193,18 @@ def prepare_corner_images() -> dict[str, str] | None:
              "BL": "corner_bl.png", "BR": "corner_br.png"}
     paths = {k: os.path.join(CORNER_DIR, v) for k, v in names.items()}
 
-    if all(os.path.exists(p) for p in paths.values()):
-        return paths
+    # Auto-detect: kalau img_template.png lebih baru dari corner cache,
+    # hapus cache lama supaya di-crop ulang dari template baru
+    all_cached = all(os.path.exists(p) for p in paths.values())
+    if all_cached:
+        template_mtime = os.path.getmtime(TEMPLATE_IMG)
+        oldest_corner  = min(os.path.getmtime(p) for p in paths.values())
+        if template_mtime <= oldest_corner:
+            return paths
+        # Template lebih baru → hapus cache lama, crop ulang
+        print("Template image berubah, regenerating corners...")
+        for p in paths.values():
+            os.remove(p)
 
     print("Cropping corners from template image...")
     img = Image.open(TEMPLATE_IMG).convert("RGBA")
@@ -380,8 +395,9 @@ def generate_pdf(names: list[str], output_path: str,
             col_idx = slot_idx % COLS
             row_idx = slot_idx // COLS
 
-            tag_x = MARGIN + col_idx * (TAG_W + GAP_H)
-            tag_y = PAGE_H - MARGIN - (row_idx + 1) * TAG_H - row_idx * GAP_V
+            # Posisi tag: margin halaman + (kolom/baris * (ukuran tag + gap))
+            tag_x = PAGE_MARGIN_H + col_idx * (TAG_W + GAP_H)
+            tag_y = PAGE_H - PAGE_MARGIN_V - (row_idx + 1) * TAG_H - row_idx * GAP_V
 
             if slot_idx < len(page_names):
                 name = page_names[slot_idx]
