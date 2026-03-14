@@ -45,8 +45,8 @@ GAP_H = (PAGE_W - 2 * PAGE_MARGIN_H - COLS * TAG_W) / (COLS - 1)   # gap horizon
 GAP_V = (PAGE_H - 2 * PAGE_MARGIN_V - ROWS * TAG_H) / (ROWS - 1)   # gap vertikal
 
 # Corner ornament size on the name tag
-CORNER_W = 18 * mm
-CORNER_H = 16 * mm
+CORNER_W = 20 * mm
+CORNER_H = 18 * mm
 
 # Colors — monochrome black on white
 COLOR_BG           = HexColor("#FFFFFF")
