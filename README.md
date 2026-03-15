@@ -1,7 +1,7 @@
 # Wedding Name Tag Generator
 
 Generate PDF name tag undangan pernikahan dari file Excel secara otomatis.
-Layout: 210x152mm landscape, 3x4 grid (12 name tag per halaman), motif bidadari & bunga.
+Layout: A4 portrait, 3x7 grid (21 name tag per halaman), motif bidadari & bunga.
 
 ---
 
@@ -11,8 +11,11 @@ Layout: 210x152mm landscape, 3x4 grid (12 name tag per halaman), motif bidadari 
 name-label-generator/
 ├── generate_nametag.py                <- script utama
 ├── img_template.png                   <- template motif sudut (wajib ada)
-├── CinzelDecorative-Regular.otf       <- font (OTF, auto-convert ke TTF)
-├── CinzelDecorative-Regular.ttf       <- font hasil convert (auto-generate)
+├── fonts/
+│   ├── CinzelDecorative-Bold.otf      <- font Bold (untuk nama tamu)
+│   ├── CinzelDecorative-Regular.otf   <- font Regular (untuk "di" & "Tempat")
+│   ├── CinzelDecorative-Bold.ttf      <- hasil convert (auto-generate)
+│   └── CinzelDecorative-Regular.ttf   <- hasil convert (auto-generate)
 ├── corners/                           <- hasil crop sudut (auto-generate)
 │   ├── corner_tl.png
 │   ├── corner_tr.png
@@ -31,7 +34,7 @@ name-label-generator/
 
 - Python 3.10 atau lebih baru
 - File `img_template.png` (template motif sudut) di folder root
-- File `CinzelDecorative-Regular.otf` di folder root (atau koneksi internet untuk download)
+- File `CinzelDecorative-Bold.otf` dan `CinzelDecorative-Regular.otf` di folder `fonts/`
 
 ---
 
@@ -93,8 +96,8 @@ Done! Buka output/Daftar_Tamu_Undangan.pdf untuk preview.
 
 File PDF otomatis tersimpan di folder **`output/`**, nama mengikuti file Excel.
 
-- Setiap halaman berisi **12 name tag** (3 kolom x 4 baris)
-- Jika jumlah nama tidak habis dibagi 12, slot kosong di halaman terakhir dibiarkan
+- Setiap halaman berisi **21 name tag** (3 kolom x 7 baris)
+- Jika jumlah nama tidak habis dibagi 21, slot kosong di halaman terakhir dibiarkan
 - PDF bisa dibuka di Adobe Reader, browser, atau aplikasi PDF apapun
 
 ### Format tiap name tag:
@@ -111,10 +114,11 @@ File PDF otomatis tersimpan di folder **`output/`**, nama mengikuti file Excel.
 │ [bunga]            [bunga]    │
 └───────────────────────────────┘
   Background putih, teks hitam
-  Font CinzelDecorative
+  Font CinzelDecorative Bold (nama)
+  Font CinzelDecorative Regular (di/Tempat)
 ```
 
-- **Baris 1:** Nama tamu (auto-fit 11pt → 7pt)
+- **Baris 1:** Nama tamu — font **Bold** (auto-fit 11pt → 7pt)
 - **Baris 2:** "di"
 - **Baris 3:** "Tempat"
 - **Sudut atas:** motif bidadari dari template
@@ -126,8 +130,8 @@ File PDF otomatis tersimpan di folder **`output/`**, nama mengikuti file Excel.
 
 Saat print di printer:
 
-- **Ukuran kertas:** Custom — `210mm x 152mm`
-- **Orientasi:** Landscape
+- **Ukuran kertas:** A4 (210mm x 297mm)
+- **Orientasi:** Portrait
 - **Scaling:** Actual size / 100% (jangan fit-to-page)
 - **Margin printer:** 0mm (borderless) atau sesuaikan
 
@@ -141,7 +145,7 @@ Saat print di printer:
 | `Tidak ada file Excel di folder 'input/'` | Folder input kosong | Taruh file `.xlsx` ke folder `input/` |
 | `Kolom 'Nama Lengkap' tidak ditemukan` | Header salah | Pastikan header persis `Nama Lengkap` di baris ke-2 |
 | `img_template.png not found` | Template motif tidak ada | Taruh file `img_template.png` di folder root |
-| Font fallback ke Helvetica | OTF tidak ada & gagal download | Taruh `CinzelDecorative-Regular.otf` di folder root |
+| Font fallback ke Helvetica | OTF tidak ada di folder fonts/ | Taruh file `.otf` ke folder `fonts/` |
 | Layout geser saat print | Setting print salah | Set kertas Custom 210x152mm, scaling 100% |
 
 ---
@@ -150,12 +154,13 @@ Saat print di printer:
 
 | Item | Detail |
 |---|---|
-| Ukuran halaman | 210mm x 152mm (landscape) |
-| Grid | 3 kolom x 4 baris = 12 name tag/halaman |
-| Ukuran name tag | 67mm x 36mm |
-| Gap antar tag | 2mm horizontal & vertical |
-| Margin halaman | 2mm semua sisi |
-| Font | CinzelDecorative Regular, 7-11pt (auto-fit) |
+| Ukuran halaman | A4 — 210mm x 297mm (portrait) |
+| Grid | 3 kolom x 7 baris = 21 name tag/halaman |
+| Ukuran name tag | 63.5mm x 38.1mm (2.5" x 1.5") |
+| Gap antar tag | otomatis (sisa ruang dibagi rata) |
+| Margin halaman | 7mm horizontal, 8mm vertikal |
+| Font nama | CinzelDecorative Bold, 7-11pt (auto-fit) |
+| Font di/Tempat | CinzelDecorative Regular, 7pt |
 | Warna background | #FFFFFF (putih) |
 | Warna teks & border | #000000 (hitam) |
 | Ornamen sudut | Crop dari img_template.png (16mm x 14mm per sudut) |

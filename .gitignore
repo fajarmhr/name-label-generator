@@ -11,9 +11,8 @@ input/*.xls
 # Cached corner images (auto-generated dari img_template.png)
 corners/
 
-# Converted font (auto-generated dari .otf)
-CinzelDecorative-Regular.ttf
-Cinzel-Bold.ttf
+# Converted font TTF (auto-generated dari .otf)
+fonts/*.ttf
 
 # Python
 __pycache__/

@@ -21,8 +21,15 @@ INPUT_DIR     = "input"
 OUTPUT_DIR    = "output"
 CORNER_DIR    = "corners"
 TEMPLATE_IMG  = "img_template.png"
-FONT_TTF      = "CinzelDecorative-Regular.ttf"
-FONT_OTF      = "CinzelDecorative-Regular.otf"
+FONT_DIR      = "fonts"
+
+# Font Regular — untuk teks "di" dan "Tempat"
+FONT_REG_OTF  = os.path.join(FONT_DIR, "CinzelDecorative-Regular.otf")
+FONT_REG_TTF  = os.path.join(FONT_DIR, "CinzelDecorative-Regular.ttf")
+
+# Font Bold — untuk nama tamu
+FONT_BOLD_OTF = os.path.join(FONT_DIR, "CinzelDecorative-Bold.otf")
+FONT_BOLD_TTF = os.path.join(FONT_DIR, "CinzelDecorative-Bold.ttf")
 
 # Page: A4 portrait (210mm x 297mm)
 PAGE_W = 210 * mm
@@ -45,8 +52,8 @@ GAP_H = (PAGE_W - 2 * PAGE_MARGIN_H - COLS * TAG_W) / (COLS - 1)   # gap horizon
 GAP_V = (PAGE_H - 2 * PAGE_MARGIN_V - ROWS * TAG_H) / (ROWS - 1)   # gap vertikal
 
 # Corner ornament size on the name tag
-CORNER_W = 20 * mm
-CORNER_H = 18 * mm
+CORNER_W = 20 * mm    # lebar ornamen sudut
+CORNER_H = 18 * mm    # Tinggi ornamen sudut
 
 # Colors — monochrome black on white
 COLOR_BG           = HexColor("#FFFFFF")
@@ -57,7 +64,8 @@ COLOR_LINE         = HexColor("#000000")
 # Font sizes
 FONT_MAX  = 11
 FONT_MIN  = 7
-FONT_NAME = "CinzelDecorative"
+FONT_NAME_BOLD = "CinzelDecorative-Bold"    # font untuk nama tamu
+FONT_NAME_REG  = "CinzelDecorative"         # font untuk "di" dan "Tempat"
 
 
 # ── 1. Pick Input File ────────────────────────────────────────────────────────
@@ -123,56 +131,39 @@ def _convert_otf_to_ttf(otf_path: str, ttf_path: str) -> bool:
     return False
 
 
-def prepare_font() -> str | None:
-    import re
+def _prepare_single_font(otf_path: str, ttf_path: str, label: str) -> str | None:
+    """
+    Siapkan satu font: cek TTF → convert dari OTF → return path atau None.
+    label dipakai untuk pesan log (misal "Regular", "Bold").
+    """
+    # Kalau TTF sudah ada dan valid, langsung pakai
+    if os.path.exists(ttf_path) and _is_valid_ttf(ttf_path):
+        return ttf_path
 
-    if os.path.exists(FONT_TTF) and _is_valid_ttf(FONT_TTF):
-        return FONT_TTF
+    # TTF ada tapi rusak → hapus
+    if os.path.exists(ttf_path) and not _is_valid_ttf(ttf_path):
+        print(f"Removing invalid {ttf_path}...")
+        os.remove(ttf_path)
 
-    if os.path.exists(FONT_TTF) and not _is_valid_ttf(FONT_TTF):
-        print(f"Removing invalid {FONT_TTF}...")
-        os.remove(FONT_TTF)
+    # Convert dari OTF kalau ada
+    if os.path.exists(otf_path):
+        if _convert_otf_to_ttf(otf_path, ttf_path):
+            return ttf_path
 
-    if os.path.exists(FONT_OTF):
-        if _convert_otf_to_ttf(FONT_OTF, FONT_TTF):
-            return FONT_TTF
-
-    try:
-        print("Downloading font from Google Fonts...")
-        css_url = "https://fonts.googleapis.com/css?family=Cinzel+Decorative:400"
-        headers = {"User-Agent": "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1)"}
-        r = requests.get(css_url, headers=headers, timeout=15)
-        if r.status_code == 200:
-            urls = re.findall(r'url\((https://fonts\.gstatic\.com/[^)]+)\)', r.text)
-            if urls:
-                rf = requests.get(urls[0], timeout=30)
-                if rf.status_code == 200 and len(rf.content) > 10_000:
-                    with open(FONT_TTF, "wb") as f:
-                        f.write(rf.content)
-                    if _is_valid_ttf(FONT_TTF):
-                        return FONT_TTF
-                    if _convert_otf_to_ttf(FONT_TTF, FONT_TTF):
-                        return FONT_TTF
-    except Exception as e:
-        print(f"  Google Fonts failed: {e}")
-
-    try:
-        print("Trying GitHub mirror...")
-        github_url = (
-            "https://github.com/google/fonts/raw/main"
-            "/ofl/cinzeldecorative/CinzelDecorative-Regular.ttf"
-        )
-        r = requests.get(github_url, timeout=30, allow_redirects=True)
-        if r.status_code == 200 and len(r.content) > 10_000:
-            with open(FONT_TTF, "wb") as f:
-                f.write(r.content)
-            if _is_valid_ttf(FONT_TTF):
-                return FONT_TTF
-    except Exception as e:
-        print(f"  GitHub mirror failed: {e}")
-
-    print("WARNING: Could not obtain font. Using Helvetica as fallback.")
+    print(f"WARNING: Font {label} tidak ditemukan. Taruh file OTF di folder fonts/.")
     return None
+
+
+def prepare_fonts() -> dict[str, str | None]:
+    """
+    Siapkan font Regular dan Bold.
+    Returns dict: {"regular": path_or_None, "bold": path_or_None}
+    """
+    os.makedirs(FONT_DIR, exist_ok=True)
+    return {
+        "regular": _prepare_single_font(FONT_REG_OTF, FONT_REG_TTF, "Regular"),
+        "bold":    _prepare_single_font(FONT_BOLD_OTF, FONT_BOLD_TTF, "Bold"),
+    }
 
 
 # ── 3. Prepare Corner Images ─────────────────────────────────────────────────
@@ -261,7 +252,8 @@ def read_names(excel_path: str) -> list[str]:
 
 def draw_nametag(c: pdf_canvas.Canvas, x: float, y: float,
                  width: float, height: float, name: str,
-                 font_registered: bool, corners: dict[str, str] | None):
+                 font_bold: str, font_reg: str,
+                 corners: dict[str, str] | None):
     """Draw one complete name tag. (x,y) = bottom-left corner."""
 
     # Background
@@ -310,8 +302,10 @@ def draw_nametag(c: pdf_canvas.Canvas, x: float, y: float,
     # mepet ke ornamen bidadari di sudut atas.
     # ══════════════════════════════════════════════════════════════════════
 
-    # Pilih font: CinzelDecorative kalau tersedia, fallback Helvetica
-    font_name = FONT_NAME if font_registered else "Helvetica"
+    # Pilih font: Bold untuk nama, Regular untuk "di" & "Tempat"
+    # Kalau font tidak tersedia, fallback ke Helvetica-Bold / Helvetica
+    fn_bold = font_bold    # font nama tamu (Bold)
+    fn_reg  = font_reg     # font "di" dan "Tempat" (Regular)
 
     # Lebar area teks = lebar name tag dikurangi margin kiri-kanan
     # (setengah lebar corner supaya teks tidak tertimpa gambar sudut)
@@ -322,7 +316,7 @@ def draw_nametag(c: pdf_canvas.Canvas, x: float, y: float,
     # sampai teks nama muat dalam 1 baris, minimum FONT_MIN (7pt)
     name_size = FONT_MAX
     while name_size >= FONT_MIN:
-        text_w = c.stringWidth(name, font_name, name_size)
+        text_w = c.stringWidth(name, fn_bold, name_size)
         if text_w <= usable_w:
             break
         name_size -= 0.5
@@ -345,15 +339,15 @@ def draw_nametag(c: pdf_canvas.Canvas, x: float, y: float,
                + gap_line_to_di + sub_size
                + gap_di_tempat + sub_size)
 
-    # Geser blok 2mm ke bawah agar tidak terlalu dekat ornamen atas
-    vertical_offset = -2 * mm
+    # Geser blok 3mm ke bawah agar tidak terlalu dekat ornamen atas
+    vertical_offset = -3 * mm
     top_of_block = center_y + total_h / 2 + vertical_offset
 
-    # ── Baris 1: Nama tamu ────────────────────────────────────────────
+    # ── Baris 1: Nama tamu (font Bold) ──────────────────────────────
     # Baseline = puncak blok dikurangi 80% tinggi font (cap height approx)
     name_y = top_of_block - name_size * 0.8
     c.setFillColor(COLOR_TEXT)
-    c.setFont(font_name, name_size)
+    c.setFont(fn_bold, name_size)
     c.drawCentredString(center_x, name_y, name)
 
     # ── Garis dekoratif di bawah nama ─────────────────────────────────
@@ -364,13 +358,13 @@ def draw_nametag(c: pdf_canvas.Canvas, x: float, y: float,
     c.setLineWidth(0.3)
     c.line(line_x1, line_y, line_x2, line_y)
 
-    # ── Baris 2: "di" ────────────────────────────────────────────────
+    # ── Baris 2: "di" (font Regular) ─────────────────────────────────
     di_y = line_y - gap_line_to_di - sub_size * 0.8
     c.setFillColor(COLOR_TEXT)
-    c.setFont(font_name, sub_size)
+    c.setFont(fn_reg, sub_size)
     c.drawCentredString(center_x, di_y, "di")
 
-    # ── Baris 3: "Tempat" ────────────────────────────────────────────
+    # ── Baris 3: "Tempat" (font Regular) ─────────────────────────────
     tempat_y = di_y - gap_di_tempat - sub_size * 0.8
     c.drawCentredString(center_x, tempat_y, "Tempat")
 
@@ -378,7 +372,8 @@ def draw_nametag(c: pdf_canvas.Canvas, x: float, y: float,
 # ── 6. Generate PDF ──────────────────────────────────────────────────────────
 
 def generate_pdf(names: list[str], output_path: str,
-                 font_registered: bool, corners: dict[str, str] | None):
+                 font_bold: str, font_reg: str,
+                 corners: dict[str, str] | None):
     """Create PDF with all name tags laid out in a 3x4 grid."""
 
     c = pdf_canvas.Canvas(output_path, pagesize=(PAGE_W, PAGE_H))
@@ -406,7 +401,7 @@ def generate_pdf(names: list[str], output_path: str,
 
             if name:
                 draw_nametag(c, tag_x, tag_y, TAG_W, TAG_H, name,
-                             font_registered, corners)
+                             font_bold, font_reg, corners)
             else:
                 c.setFillColor(COLOR_BG)
                 c.setStrokeColor(COLOR_BORDER_OUTER)
@@ -431,16 +426,26 @@ def main():
     base_name   = os.path.splitext(os.path.basename(excel_path))[0]
     output_path = os.path.join(OUTPUT_DIR, f"{base_name}.pdf")
 
-    # Step 2: Font
-    font_registered = False
-    font_file = prepare_font()
-    if font_file:
+    # Step 2: Font (Bold untuk nama, Regular untuk "di" & "Tempat")
+    fonts = prepare_fonts()
+    font_bold = "Helvetica-Bold"   # fallback
+    font_reg  = "Helvetica"        # fallback
+
+    if fonts["bold"]:
         try:
-            pdfmetrics.registerFont(TTFont(FONT_NAME, font_file))
-            font_registered = True
-            print(f"Font {FONT_NAME} registered from {font_file}.")
+            pdfmetrics.registerFont(TTFont(FONT_NAME_BOLD, fonts["bold"]))
+            font_bold = FONT_NAME_BOLD
+            print(f"Font Bold registered dari {fonts['bold']}")
         except Exception as e:
-            print(f"Could not register font: {e}. Using Helvetica.")
+            print(f"Could not register Bold font: {e}. Using Helvetica-Bold.")
+
+    if fonts["regular"]:
+        try:
+            pdfmetrics.registerFont(TTFont(FONT_NAME_REG, fonts["regular"]))
+            font_reg = FONT_NAME_REG
+            print(f"Font Regular registered dari {fonts['regular']}")
+        except Exception as e:
+            print(f"Could not register Regular font: {e}. Using Helvetica.")
 
     # Step 3: Corner images
     corners = prepare_corner_images()
@@ -452,7 +457,7 @@ def main():
         sys.exit(1)
 
     # Step 5: Generate PDF
-    generate_pdf(names, output_path, font_registered, corners)
+    generate_pdf(names, output_path, font_bold, font_reg, corners)
     print(f"Done! Buka {output_path} untuk preview.")
 
 
