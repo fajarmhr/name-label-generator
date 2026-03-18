@@ -1,7 +1,7 @@
 # Wedding Name Tag Generator
 
 Generate PDF name tag undangan pernikahan dari file Excel secara otomatis.
-Layout: A4 portrait, 3x7 grid (21 name tag per halaman), motif bidadari & bunga.
+Layout: A4 portrait, 3x8 grid (24 name tag per halaman), motif corner dari template gambar.
 
 ---
 
@@ -9,22 +9,24 @@ Layout: A4 portrait, 3x7 grid (21 name tag per halaman), motif bidadari & bunga.
 
 ```
 name-label-generator/
-├── generate_nametag.py                <- script utama
-├── img_template.png                   <- template motif sudut (wajib ada)
+├── generate_nametag.py                    <- script utama
+├── img_template.png                       <- template motif sudut (wajib ada)
 ├── fonts/
-│   ├── CinzelDecorative-Bold.otf      <- font Bold (untuk nama tamu)
-│   ├── CinzelDecorative-Regular.otf   <- font Regular (untuk "di" & "Tempat")
-│   ├── CinzelDecorative-Bold.ttf      <- hasil convert (auto-generate)
-│   └── CinzelDecorative-Regular.ttf   <- hasil convert (auto-generate)
-├── corners/                           <- hasil crop sudut (auto-generate)
+│   ├── PlusJakartaSans-Medium.otf         <- font Bold (untuk nama tamu)
+│   ├── PlusJakartaSans-Regular.otf        <- font Regular (untuk alamat / "di" / "Tempat")
+│   ├── PlusJakartaSans-Medium.ttf         <- hasil convert (auto-generate)
+│   └── PlusJakartaSans-Regular.ttf        <- hasil convert (auto-generate)
+├── corners/                               <- hasil crop sudut (auto-generate)
 │   ├── corner_tl.png
 │   ├── corner_tr.png
 │   ├── corner_bl.png
 │   └── corner_br.png
 ├── input/
-│   └── *.xlsx                         <- file Excel tamu (taruh di sini)
+│   ├── Template Daftar Tamu Undangan.xlsx <- template referensi format Excel
+│   └── *.xlsx                             <- file Excel tamu (taruh di sini)
 ├── output/
-│   └── *.pdf                          <- hasil PDF (auto-generate)
+│   └── *.pdf                              <- hasil PDF (auto-generate)
+├── .gitignore
 └── README.md
 ```
 
@@ -34,34 +36,36 @@ name-label-generator/
 
 - Python 3.10 atau lebih baru
 - File `img_template.png` (template motif sudut) di folder root
-- File `CinzelDecorative-Bold.otf` dan `CinzelDecorative-Regular.otf` di folder `fonts/`
+- File font `.otf` di folder `fonts/` (PlusJakartaSans-Medium & PlusJakartaSans-Regular)
 
 ---
 
 ## 1. Install Dependencies
 
 ```bash
-pip install pandas openpyxl reportlab requests fonttools otf2ttf Pillow
+pip install pandas openpyxl reportlab fonttools otf2ttf Pillow
 ```
 
 ---
 
 ## 2. Siapkan File Excel
 
-Format file Excel yang diperlukan:
+Lihat file `input/Template Daftar Tamu Undangan.xlsx` untuk contoh format.
 
-| (baris 1 — kosong atau judul) |
-|---|
-| **Nama Lengkap** |
-| Budi Santoso |
-| Siti Rahayu |
-| ... |
+Format yang diperlukan:
 
-- Nama file bebas (boleh apa saja), ekstensi `.xlsx` atau `.xls`
-- Header kolom (`Nama Lengkap`) harus ada di **baris ke-2**
+| (baris 1 — kosong atau judul) | | |
+|---|---|---|
+| **No** | **Nama Lengkap** | **Alamat** |
+| 1 | Budi Santoso | SMP Negeri 1 Ampel |
+| 2 | Siti Rahayu | |
+| ... | ... | ... |
+
+- Nama file bebas, ekstensi `.xlsx` atau `.xls`
+- Header kolom harus ada di **baris ke-2**
+- Kolom `Nama Lengkap` wajib ada
+- Kolom `Alamat` opsional — jika ada dan terisi, alamat ditampilkan di name tag
 - Taruh file Excel di folder **`input/`** (boleh lebih dari satu file)
-
-> Nama duplikat dibiarkan apa adanya, tidak dihapus.
 
 ---
 
@@ -75,17 +79,18 @@ Script akan scan folder `input/` dan meminta kamu memilih file jika ada lebih da
 
 ```
 File Excel yang tersedia di folder input/:
-  [1] Daftar_Tamu_Undangan.xlsx
-  [2] Tamu_VIP.xlsx
+  [1] Daftar Tamu Undangan - Bapak.xlsx
+  [2] Daftar Tamu Undangan - Ibu.xlsx
 
 Pilih nomor file (1-2): 1
-Dipilih: Daftar_Tamu_Undangan.xlsx
+Dipilih: Daftar Tamu Undangan - Bapak.xlsx
+Font Bold registered dari fonts/PlusJakartaSans-Medium.ttf
+Font Regular registered dari fonts/PlusJakartaSans-Regular.ttf
 Cropping corners from template image...
 Corners cached in corners/
-Font CinzelDecorative registered from CinzelDecorative-Regular.ttf.
-Loaded 76 names from input/Daftar_Tamu_Undangan.xlsx
-PDF saved: output/Daftar_Tamu_Undangan.pdf  (7 page(s), 76 names)
-Done! Buka output/Daftar_Tamu_Undangan.pdf untuk preview.
+Loaded 76 names from input/Daftar Tamu Undangan - Bapak.xlsx
+PDF saved: output/Daftar Tamu Undangan - Bapak.pdf  (4 page(s), 76 names)
+Done! Buka output/Daftar Tamu Undangan - Bapak.pdf untuk preview.
 ```
 
 > Jika hanya ada 1 file di `input/`, langsung dipilih otomatis tanpa perlu input.
@@ -96,33 +101,42 @@ Done! Buka output/Daftar_Tamu_Undangan.pdf untuk preview.
 
 File PDF otomatis tersimpan di folder **`output/`**, nama mengikuti file Excel.
 
-- Setiap halaman berisi **21 name tag** (3 kolom x 7 baris)
-- Jika jumlah nama tidak habis dibagi 21, slot kosong di halaman terakhir dibiarkan
+- Setiap halaman berisi **24 name tag** (3 kolom x 8 baris)
+- Jika jumlah nama tidak habis dibagi 24, slot kosong di halaman terakhir dibiarkan
 - PDF bisa dibuka di Adobe Reader, browser, atau aplikasi PDF apapun
 
 ### Format tiap name tag:
 
+**Jika ada alamat:**
 ```
 ┌───────────────────────────────┐
-│ [bidadari]      [bidadari]    │
+│ [corner]          [corner]    │
+│                               │
+│        Agus & Partner         │
+│       ─────────────────       │
+│      SMP Negeri 2 Ampel       │
+│                               │
+│ [corner]          [corner]    │
+└───────────────────────────────┘
+```
+
+**Jika alamat kosong:**
+```
+┌───────────────────────────────┐
+│ [corner]          [corner]    │
 │                               │
 │        Agus & Partner         │
 │       ─────────────────       │
 │              di               │
 │            Tempat             │
 │                               │
-│ [bunga]            [bunga]    │
+│ [corner]          [corner]    │
 └───────────────────────────────┘
-  Background putih, teks hitam
-  Font CinzelDecorative Bold (nama)
-  Font CinzelDecorative Regular (di/Tempat)
 ```
 
-- **Baris 1:** Nama tamu — font **Bold** (auto-fit 11pt → 7pt)
-- **Baris 2:** "di"
-- **Baris 3:** "Tempat"
-- **Sudut atas:** motif bidadari dari template
-- **Sudut bawah:** motif bunga dari template
+- **Baris 1:** Nama tamu — font **Medium/Bold** (auto-fit 13.5pt → 9pt)
+- **Baris 2-3:** Alamat (jika ada) atau "di" + "Tempat" (jika kosong)
+- **Ornamen sudut:** Auto-crop dari `img_template.png`
 
 ---
 
@@ -137,16 +151,22 @@ Saat print di printer:
 
 ---
 
+## 6. Ganti Template Motif
+
+Cukup ganti file `img_template.png` dengan gambar baru, lalu jalankan script ulang.
+Corner otomatis di-crop ulang dari template baru (auto-detect perubahan).
+
+---
+
 ## Troubleshooting
 
 | Error | Penyebab | Solusi |
 |---|---|---|
-| `ModuleNotFoundError` | Library belum terinstall | `pip install pandas openpyxl reportlab requests fonttools otf2ttf Pillow` |
+| `ModuleNotFoundError` | Library belum terinstall | `pip install pandas openpyxl reportlab fonttools otf2ttf Pillow` |
 | `Tidak ada file Excel di folder 'input/'` | Folder input kosong | Taruh file `.xlsx` ke folder `input/` |
 | `Kolom 'Nama Lengkap' tidak ditemukan` | Header salah | Pastikan header persis `Nama Lengkap` di baris ke-2 |
 | `img_template.png not found` | Template motif tidak ada | Taruh file `img_template.png` di folder root |
 | Font fallback ke Helvetica | OTF tidak ada di folder fonts/ | Taruh file `.otf` ke folder `fonts/` |
-| Layout geser saat print | Setting print salah | Set kertas Custom 210x152mm, scaling 100% |
 
 ---
 
@@ -155,17 +175,17 @@ Saat print di printer:
 | Item | Detail |
 |---|---|
 | Ukuran halaman | A4 — 210mm x 297mm (portrait) |
-| Grid | 3 kolom x 7 baris = 21 name tag/halaman |
-| Ukuran name tag | 63.5mm x 38.1mm (2.5" x 1.5") |
+| Grid | 3 kolom x 8 baris = 24 name tag/halaman |
+| Ukuran name tag | 64mm x 33.9mm |
 | Gap antar tag | otomatis (sisa ruang dibagi rata) |
 | Margin halaman | 7mm horizontal, 8mm vertikal |
-| Font nama | CinzelDecorative Bold, 7-11pt (auto-fit) |
-| Font di/Tempat | CinzelDecorative Regular, 7pt |
+| Font nama | PlusJakartaSans Medium, 9-13.5pt (auto-fit) |
+| Font alamat/di/Tempat | PlusJakartaSans Regular, 9pt |
 | Warna background | #FFFFFF (putih) |
 | Warna teks & border | #000000 (hitam) |
-| Ornamen sudut | Crop dari img_template.png (16mm x 14mm per sudut) |
-| Format teks | Nama / di / Tempat (3 baris centered) |
+| Ornamen sudut | Auto-crop dari img_template.png |
+| Format teks | Nama + alamat (2 baris) atau Nama + di + Tempat (3 baris) |
 
 ---
 
-*Stack: Python + ReportLab + Pillow + CinzelDecorative Font*
+*Stack: Python + ReportLab + Pillow + PlusJakartaSans Font*

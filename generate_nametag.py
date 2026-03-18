@@ -1,11 +1,10 @@
-# INSTALL: pip install pandas openpyxl reportlab requests fonttools otf2ttf Pillow
+# INSTALL: pip install pandas openpyxl reportlab fonttools otf2ttf Pillow
 # RUN    : python generate_nametag.py
 # OUTPUT : output/<nama_file>.pdf
 
 import os
 import sys
 import math
-import requests
 import pandas as pd
 from PIL import Image
 from reportlab.lib.units import mm
@@ -13,7 +12,6 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas as pdf_canvas
 from reportlab.lib.colors import HexColor
-from reportlab.lib.utils import ImageReader
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -24,24 +22,24 @@ TEMPLATE_IMG  = "img_template.png"
 FONT_DIR      = "fonts"
 
 # Font Regular — untuk teks "di" dan "Tempat"
-FONT_REG_OTF  = os.path.join(FONT_DIR, "CinzelDecorative-Regular.otf")
-FONT_REG_TTF  = os.path.join(FONT_DIR, "CinzelDecorative-Regular.ttf")
+FONT_REG_OTF  = os.path.join(FONT_DIR, "PlusJakartaSans-Regular.otf")
+FONT_REG_TTF  = os.path.join(FONT_DIR, "PlusJakartaSans-Regular.ttf")
 
 # Font Bold — untuk nama tamu
-FONT_BOLD_OTF = os.path.join(FONT_DIR, "CinzelDecorative-Bold.otf")
-FONT_BOLD_TTF = os.path.join(FONT_DIR, "CinzelDecorative-Bold.ttf")
+FONT_BOLD_OTF = os.path.join(FONT_DIR, "PlusJakartaSans-Medium.otf")
+FONT_BOLD_TTF = os.path.join(FONT_DIR, "PlusJakartaSans-Medium.ttf")
 
 # Page: A4 portrait (210mm x 297mm)
 PAGE_W = 210 * mm
 PAGE_H = 297 * mm
 
 COLS     = 3
-ROWS     = 7
-TAGS_PER = COLS * ROWS   # 21 labels per halaman
+ROWS     = 8
+TAGS_PER = COLS * ROWS   # 24 labels per halaman
 
-# Label: 2.5" x 1.5" (63.5mm x 38.1mm)
-TAG_W = 63.5 * mm
-TAG_H = 38.1 * mm
+# Label: 64mm x 33.9mm (standar 24 labels/sheet)
+TAG_W = 64 * mm
+TAG_H = 33.9 * mm
 
 # Margin halaman (pinggir kertas) — lebih besar supaya aman saat print
 PAGE_MARGIN_H = 7 * mm    # margin kiri & kanan
@@ -51,9 +49,16 @@ PAGE_MARGIN_V = 8 * mm    # margin atas & bawah
 GAP_H = (PAGE_W - 2 * PAGE_MARGIN_H - COLS * TAG_W) / (COLS - 1)   # gap horizontal
 GAP_V = (PAGE_H - 2 * PAGE_MARGIN_V - ROWS * TAG_H) / (ROWS - 1)   # gap vertikal
 
-# Corner ornament size on the name tag
-CORNER_W = 20 * mm    # lebar ornamen sudut
-CORNER_H = 18 * mm    # Tinggi ornamen sudut
+# Ukuran ornamen sudut pada nametag
+# Atas (bunga kecil) — lebih kecil
+CORNER_TOP_W = 18 * mm
+CORNER_TOP_H = 11.5 * mm
+# Bawah (gunungan + bunga) — lebih besar
+CORNER_BOT_W = 19 * mm
+CORNER_BOT_H = 12 * mm
+
+# Jarak ornamen dari tepi nametag (mm)
+CORNER_MARGIN = 1.1 * mm
 
 # Colors — monochrome black on white
 COLOR_BG           = HexColor("#FFFFFF")
@@ -62,10 +67,11 @@ COLOR_TEXT         = HexColor("#000000")
 COLOR_LINE         = HexColor("#000000")
 
 # Font sizes
-FONT_MAX  = 11
-FONT_MIN  = 7
-FONT_NAME_BOLD = "CinzelDecorative-Bold"    # font untuk nama tamu
-FONT_NAME_REG  = "CinzelDecorative"         # font untuk "di" dan "Tempat"
+FONT_MAX  = 13.5
+FONT_MIN  = 9
+FONT_SUB  = 9     # ukuran font tetap untuk teks di bawah garis (alamat / "di" / "Tempat")
+FONT_NAME_BOLD = "PlusJakartaSans-Medium"   # font untuk nama tamu
+FONT_NAME_REG  = "PlusJakartaSans-Regular"  # font untuk "di" dan "Tempat"
 
 
 # ── 1. Pick Input File ────────────────────────────────────────────────────────
@@ -201,31 +207,65 @@ def prepare_corner_images() -> dict[str, str] | None:
     img = Image.open(TEMPLATE_IMG).convert("RGBA")
     w, h = img.size
 
-    # Crop fractions — how much of each corner to grab
-    fx = 0.36   # 36% width from edge
-    fy = 0.46   # 46% height from edge
-    cw = int(w * fx)
-    ch = int(h * fy)
+    # ── Auto-crop: bagi gambar jadi 4 kuadran, lalu deteksi bounding box
+    #    dari pixel non-putih di tiap kuadran. Hasilnya = crop pas di gambar,
+    #    bukan persentase dari tepi (jadi bebas ganti template tanpa adjust angka).
+    THRESHOLD = 235   # pixel di atas nilai ini dianggap putih / background
+    PADDING   = 5     # padding pixel tambahan di sekitar bounding box
 
-    crops = {
-        "TL": (0,      0,      cw, ch),
-        "TR": (w - cw, 0,      w,  ch),
-        "BL": (0,      h - ch, cw, h),
-        "BR": (w - cw, h - ch, w,  h),
+    # Bagi jadi 4 kuadran (kiri/kanan x atas/bawah)
+    hw, hh = w // 2, h // 2
+    quadrants = {
+        "TL": (0,  0,  hw, hh),
+        "TR": (hw, 0,  w,  hh),
+        "BL": (0,  hh, hw, h),
+        "BR": (hw, hh, w,  h),
     }
 
-    for corner, box in crops.items():
-        cropped = img.crop(box)
+    for corner, quad_box in quadrants.items():
+        quadrant = img.crop(quad_box)
+        pixels = quadrant.load()
+        qw, qh = quadrant.size
 
-        # Make white/near-white pixels transparent
-        pixels = cropped.load()
+        # Cari bounding box pixel non-putih di kuadran ini
+        min_x, min_y = qw, qh
+        max_x, max_y = 0, 0
+        found = False
+
+        for py in range(qh):
+            for px in range(qw):
+                r, g, b, a = pixels[px, py]
+                if r < THRESHOLD or g < THRESHOLD or b < THRESHOLD:
+                    if px < min_x: min_x = px
+                    if px > max_x: max_x = px
+                    if py < min_y: min_y = py
+                    if py > max_y: max_y = py
+                    found = True
+
+        if not found:
+            # Kuadran kosong, skip
+            print(f"  {corner}: tidak ada gambar, skip")
+            continue
+
+        # Tambah padding, clamp ke batas kuadran
+        min_x = max(0,      min_x - PADDING)
+        min_y = max(0,      min_y - PADDING)
+        max_x = min(qw - 1, max_x + PADDING)
+        max_y = min(qh - 1, max_y + PADDING)
+
+        # Crop ke bounding box ornamen
+        cropped = quadrant.crop((min_x, min_y, max_x + 1, max_y + 1))
+
+        # Buat pixel putih/near-white jadi transparan
+        cpx = cropped.load()
         for py in range(cropped.height):
             for px in range(cropped.width):
-                r, g, b, a = pixels[px, py]
-                if r > 235 and g > 235 and b > 235:
-                    pixels[px, py] = (r, g, b, 0)
+                r, g, b, a = cpx[px, py]
+                if r > THRESHOLD and g > THRESHOLD and b > THRESHOLD:
+                    cpx[px, py] = (r, g, b, 0)
 
         cropped.save(paths[corner], "PNG")
+        print(f"  {corner}: {cropped.width}x{cropped.height}px")
 
     print(f"Corners cached in {CORNER_DIR}/")
     return paths
@@ -233,25 +273,40 @@ def prepare_corner_images() -> dict[str, str] | None:
 
 # ── 4. Read Names ─────────────────────────────────────────────────────────────
 
-def read_names(excel_path: str) -> list[str]:
-    """Read Excel, return list of names. Header at row 2 (index 1)."""
+def read_names(excel_path: str) -> list[tuple[str, str]]:
+    """
+    Read Excel, return list of (nama, alamat) tuples.
+    Kalau kolom 'Alamat' tidak ada, alamat diisi string kosong.
+    Header at row 2 (index 1).
+    """
     df = pd.read_excel(excel_path, header=1, engine="openpyxl")
-    col = "Nama Lengkap"
-    if col not in df.columns:
+    col_nama = "Nama Lengkap"
+    col_alamat = "Alamat"
+
+    if col_nama not in df.columns:
         raise ValueError(
-            f"Kolom '{col}' tidak ditemukan. "
+            f"Kolom '{col_nama}' tidak ditemukan. "
             f"Kolom yang ada: {list(df.columns)}"
         )
-    names = df[col].dropna().astype(str).tolist()
-    names = [n.strip() for n in names if n.strip()]
-    print(f"Loaded {len(names)} names from {excel_path}")
-    return names
+
+    # Ambil nama dan alamat, bersihkan whitespace
+    results = []
+    for _, row in df.iterrows():
+        nama = str(row[col_nama]).strip() if pd.notna(row[col_nama]) else ""
+        alamat = ""
+        if col_alamat in df.columns and pd.notna(row.get(col_alamat)):
+            alamat = str(row[col_alamat]).strip()
+        if nama:
+            results.append((nama, alamat))
+
+    print(f"Loaded {len(results)} names from {excel_path}")
+    return results
 
 
 # ── 5. Draw Single Name Tag ──────────────────────────────────────────────────
 
 def draw_nametag(c: pdf_canvas.Canvas, x: float, y: float,
-                 width: float, height: float, name: str,
+                 width: float, height: float, name: str, alamat: str,
                  font_bold: str, font_reg: str,
                  corners: dict[str, str] | None):
     """Draw one complete name tag. (x,y) = bottom-left corner."""
@@ -265,126 +320,137 @@ def draw_nametag(c: pdf_canvas.Canvas, x: float, y: float,
     c.setLineWidth(0.8)
     c.rect(x, y, width, height, fill=0, stroke=1)
 
-    # Corner images
+    # Corner images — atas (bunga kecil) dan bawah (gunungan) beda ukuran
+    # cm = CORNER_MARGIN — jarak ornamen dari tepi nametag
+    cm = CORNER_MARGIN
     if corners:
         # Top-left
         c.drawImage(corners["TL"],
-                    x, y + height - CORNER_H,
-                    width=CORNER_W, height=CORNER_H, mask="auto")
+                    x + cm, y + height - CORNER_TOP_H - cm,
+                    width=CORNER_TOP_W, height=CORNER_TOP_H, mask="auto")
         # Top-right
         c.drawImage(corners["TR"],
-                    x + width - CORNER_W, y + height - CORNER_H,
-                    width=CORNER_W, height=CORNER_H, mask="auto")
+                    x + width - CORNER_TOP_W - cm, y + height - CORNER_TOP_H - cm,
+                    width=CORNER_TOP_W, height=CORNER_TOP_H, mask="auto")
         # Bottom-left
         c.drawImage(corners["BL"],
-                    x, y,
-                    width=CORNER_W, height=CORNER_H, mask="auto")
+                    x + cm, y + cm,
+                    width=CORNER_BOT_W, height=CORNER_BOT_H, mask="auto")
         # Bottom-right
         c.drawImage(corners["BR"],
-                    x + width - CORNER_W, y,
-                    width=CORNER_W, height=CORNER_H, mask="auto")
+                    x + width - CORNER_BOT_W - cm, y + cm,
+                    width=CORNER_BOT_W, height=CORNER_BOT_H, mask="auto")
 
     # ══════════════════════════════════════════════════════════════════════
     # TEXT LAYOUT — 3 baris teks, centered horizontal & vertical
     #
+    # Kalau alamat ada isinya:
     #   ┌─────────────────────────────────┐
-    #   │  [corner]            [corner]   │
-    #   │                                 │
+    #   │         Agus & Partner          │  ← baris 1: nama (auto-fit)
+    #   │        ─────────────────        │  ← garis dekoratif
+    #   │       SMP Negeri 2 Ampel        │  ← baris 2: alamat
+    #   └─────────────────────────────────┘
+    #
+    # Kalau alamat kosong:
+    #   ┌─────────────────────────────────┐
     #   │         Agus & Partner          │  ← baris 1: nama (auto-fit)
     #   │        ─────────────────        │  ← garis dekoratif
     #   │               di                │  ← baris 2: "di"
     #   │             Tempat              │  ← baris 3: "Tempat"
-    #   │                                 │
-    #   │  [corner]            [corner]   │
     #   └─────────────────────────────────┘
-    #
-    # Offset vertikal digeser 2mm ke bawah supaya teks tidak terlalu
-    # mepet ke ornamen bidadari di sudut atas.
     # ══════════════════════════════════════════════════════════════════════
-
-    # Pilih font: Bold untuk nama, Regular untuk "di" & "Tempat"
-    # Kalau font tidak tersedia, fallback ke Helvetica-Bold / Helvetica
-    fn_bold = font_bold    # font nama tamu (Bold)
-    fn_reg  = font_reg     # font "di" dan "Tempat" (Regular)
 
     # Lebar area teks = lebar name tag dikurangi margin kiri-kanan
     # (setengah lebar corner supaya teks tidak tertimpa gambar sudut)
-    margin_text = CORNER_W * 0.5
+    margin_text = CORNER_BOT_W * 0.5
     usable_w = width - 2 * margin_text
 
-    # Auto-fit: mulai dari FONT_MAX (11pt), turunkan 0.5pt per iterasi
-    # sampai teks nama muat dalam 1 baris, minimum FONT_MIN (7pt)
+    # Auto-fit: mulai dari FONT_MAX, turunkan 0.5pt per iterasi
+    # sampai teks nama muat dalam 1 baris, minimum FONT_MIN
     name_size = FONT_MAX
     while name_size >= FONT_MIN:
-        text_w = c.stringWidth(name, fn_bold, name_size)
+        text_w = c.stringWidth(name, font_bold, name_size)
         if text_w <= usable_w:
             break
         name_size -= 0.5
 
-    sub_size = 7  # ukuran font tetap untuk "di" dan "Tempat"
+    sub_size = FONT_SUB
 
     # ── Jarak antar elemen (dalam mm, dikonversi ke canvas units) ─────
     gap_name_to_line = 2.5 * mm   # jarak dari baseline nama ke garis dekoratif
-    gap_line_to_di   = 2.0 * mm   # jarak dari garis dekoratif ke "di"
-    gap_di_tempat    = 1.2 * mm   # jarak dari "di" ke "Tempat"
+    gap_line_to_sub  = 2.0 * mm   # jarak dari garis dekoratif ke baris berikutnya
+    gap_di_tempat    = 1.2 * mm   # jarak dari "di" ke "Tempat" (hanya kalau alamat kosong)
 
     # Titik tengah name tag
     center_x = x + width / 2
     center_y = y + height / 2
 
-    # Hitung total tinggi blok teks supaya bisa di-center vertikal:
-    #   nama + gap + garis(0.3) + gap + "di" + gap + "Tempat"
-    total_h = (name_size
-               + gap_name_to_line + 0.3
-               + gap_line_to_di + sub_size
-               + gap_di_tempat + sub_size)
+    # Hitung total tinggi blok teks supaya bisa di-center vertikal
+    if alamat:
+        # 2 baris: nama + garis + alamat
+        total_h = (name_size
+                   + gap_name_to_line + 0.3
+                   + gap_line_to_sub + sub_size)
+    else:
+        # 3 baris: nama + garis + "di" + "Tempat"
+        total_h = (name_size
+                   + gap_name_to_line + 0.3
+                   + gap_line_to_sub + sub_size
+                   + gap_di_tempat + sub_size)
 
-    # Geser blok 3mm ke bawah agar tidak terlalu dekat ornamen atas
-    vertical_offset = -3 * mm
+    # Geser blok ke bawah agar tidak terlalu dekat ornamen atas
+    # 2 baris (ada alamat) → geser lebih sedikit supaya posisi lebih naik
+    vertical_offset = -1.5 * mm if alamat else -3 * mm
     top_of_block = center_y + total_h / 2 + vertical_offset
 
     # ── Baris 1: Nama tamu (font Bold) ──────────────────────────────
-    # Baseline = puncak blok dikurangi 80% tinggi font (cap height approx)
     name_y = top_of_block - name_size * 0.8
     c.setFillColor(COLOR_TEXT)
-    c.setFont(fn_bold, name_size)
+    c.setFont(font_bold, name_size)
     c.drawCentredString(center_x, name_y, name)
 
     # ── Garis dekoratif di bawah nama ─────────────────────────────────
     line_y = name_y - gap_name_to_line
-    line_x1 = x + margin_text          # mulai dari margin kiri
-    line_x2 = x + width - margin_text  # sampai margin kanan
+    line_x1 = x + margin_text
+    line_x2 = x + width - margin_text
     c.setStrokeColor(COLOR_LINE)
     c.setLineWidth(0.3)
     c.line(line_x1, line_y, line_x2, line_y)
 
-    # ── Baris 2: "di" (font Regular) ─────────────────────────────────
-    di_y = line_y - gap_line_to_di - sub_size * 0.8
-    c.setFillColor(COLOR_TEXT)
-    c.setFont(fn_reg, sub_size)
-    c.drawCentredString(center_x, di_y, "di")
+    if alamat:
+        # ── Baris 2: Alamat (font Regular) ───────────────────────────
+        alamat_y = line_y - gap_line_to_sub - sub_size * 0.8
+        c.setFillColor(COLOR_TEXT)
+        c.setFont(font_reg, sub_size)
+        c.drawCentredString(center_x, alamat_y, alamat)
+    else:
+        # ── Baris 2: "di" (font Regular) ─────────────────────────────
+        di_y = line_y - gap_line_to_sub - sub_size * 0.8
+        c.setFillColor(COLOR_TEXT)
+        c.setFont(font_reg, sub_size)
+        c.drawCentredString(center_x, di_y, "di")
 
-    # ── Baris 3: "Tempat" (font Regular) ─────────────────────────────
-    tempat_y = di_y - gap_di_tempat - sub_size * 0.8
-    c.drawCentredString(center_x, tempat_y, "Tempat")
+        # ── Baris 3: "Tempat" (font Regular) ─────────────────────────
+        tempat_y = di_y - gap_di_tempat - sub_size * 0.8
+        c.drawCentredString(center_x, tempat_y, "Tempat")
 
 
 # ── 6. Generate PDF ──────────────────────────────────────────────────────────
 
-def generate_pdf(names: list[str], output_path: str,
+def generate_pdf(guests: list[tuple[str, str]], output_path: str,
                  font_bold: str, font_reg: str,
                  corners: dict[str, str] | None):
-    """Create PDF with all name tags laid out in a 3x4 grid."""
+    """Create PDF with all name tags laid out in a 3x7 grid."""
 
     c = pdf_canvas.Canvas(output_path, pagesize=(PAGE_W, PAGE_H))
     c.setTitle("Wedding Name Tags")
 
-    total = len(names)
+    total = len(guests)
     total_pages = math.ceil(total / TAGS_PER) if total > 0 else 1
 
     for page_idx in range(total_pages):
         start = page_idx * TAGS_PER
-        page_names = names[start: start + TAGS_PER]
+        page_guests = guests[start: start + TAGS_PER]
 
         for slot_idx in range(TAGS_PER):
             col_idx = slot_idx % COLS
@@ -394,13 +460,13 @@ def generate_pdf(names: list[str], output_path: str,
             tag_x = PAGE_MARGIN_H + col_idx * (TAG_W + GAP_H)
             tag_y = PAGE_H - PAGE_MARGIN_V - (row_idx + 1) * TAG_H - row_idx * GAP_V
 
-            if slot_idx < len(page_names):
-                name = page_names[slot_idx]
+            if slot_idx < len(page_guests):
+                name, alamat = page_guests[slot_idx]
             else:
-                name = ""
+                name, alamat = "", ""
 
             if name:
-                draw_nametag(c, tag_x, tag_y, TAG_W, TAG_H, name,
+                draw_nametag(c, tag_x, tag_y, TAG_W, TAG_H, name, alamat,
                              font_bold, font_reg, corners)
             else:
                 c.setFillColor(COLOR_BG)
@@ -450,14 +516,14 @@ def main():
     # Step 3: Corner images
     corners = prepare_corner_images()
 
-    # Step 4: Read names
-    names = read_names(excel_path)
-    if not names:
+    # Step 4: Read names + alamat
+    guests = read_names(excel_path)
+    if not guests:
         print("ERROR: Tidak ada nama yang terbaca dari Excel.")
         sys.exit(1)
 
     # Step 5: Generate PDF
-    generate_pdf(names, output_path, font_bold, font_reg, corners)
+    generate_pdf(guests, output_path, font_bold, font_reg, corners)
     print(f"Done! Buka {output_path} untuk preview.")
 
 
