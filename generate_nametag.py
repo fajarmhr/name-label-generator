@@ -29,25 +29,25 @@ FONT_REG_TTF  = os.path.join(FONT_DIR, "PlusJakartaSans-Regular.ttf")
 FONT_BOLD_OTF = os.path.join(FONT_DIR, "PlusJakartaSans-Medium.otf")
 FONT_BOLD_TTF = os.path.join(FONT_DIR, "PlusJakartaSans-Medium.ttf")
 
-# Page: A4 portrait (210mm x 297mm)
-PAGE_W = 210 * mm
-PAGE_H = 297 * mm
+# Page: Custom (200mm x 137mm)
+PAGE_W = 200 * mm
+PAGE_H = 137 * mm
 
 COLS     = 3
-ROWS     = 8
-TAGS_PER = COLS * ROWS   # 24 labels per halaman
+ROWS     = 4
+TAGS_PER = COLS * ROWS   # 12 labels per halaman
 
-# Label: 64mm x 33.9mm (standar 24 labels/sheet)
+# Label: 64mm x 32mm
 TAG_W = 64 * mm
-TAG_H = 33.9 * mm
+TAG_H = 32 * mm
 
-# Margin halaman (pinggir kertas) — lebih besar supaya aman saat print
-PAGE_MARGIN_H = 7 * mm    # margin kiri & kanan
-PAGE_MARGIN_V = 8 * mm    # margin atas & bawah
+# Margin halaman (pinggir kertas)
+PAGE_MARGIN_H = 2 * mm    # margin kiri & kanan (side margin)
+PAGE_MARGIN_V = 2 * mm    # margin atas & bawah (top margin)
 
-# Gap antar nametag — lebih kecil supaya margin halaman bisa lebih lega
-GAP_H = (PAGE_W - 2 * PAGE_MARGIN_H - COLS * TAG_W) / (COLS - 1)   # gap horizontal
-GAP_V = (PAGE_H - 2 * PAGE_MARGIN_V - ROWS * TAG_H) / (ROWS - 1)   # gap vertikal
+# Gap antar nametag — dihitung otomatis supaya margin kiri=kanan, atas=bawah
+GAP_H = (PAGE_W - 2 * PAGE_MARGIN_H - COLS * TAG_W) / (COLS - 1)   # ~2mm
+GAP_V = (PAGE_H - 2 * PAGE_MARGIN_V - ROWS * TAG_H) / (ROWS - 1)   # ~1.67mm
 
 # Ukuran ornamen sudut pada nametag
 # Atas (bunga kecil) — lebih kecil
@@ -320,26 +320,20 @@ def draw_nametag(c: pdf_canvas.Canvas, x: float, y: float,
     c.setLineWidth(0.8)
     c.rect(x, y, width, height, fill=0, stroke=1)
 
-    # Corner images — atas (bunga kecil) dan bawah (gunungan) beda ukuran
+    # Corner images — hanya Top-Left dan Bottom-Right
     # cm = CORNER_MARGIN — jarak ornamen dari tepi nametag
     cm = CORNER_MARGIN
     if corners:
         # Top-left
-        c.drawImage(corners["TL"],
-                    x + cm, y + height - CORNER_TOP_H - cm,
-                    width=CORNER_TOP_W, height=CORNER_TOP_H, mask="auto")
-        # Top-right
-        c.drawImage(corners["TR"],
-                    x + width - CORNER_TOP_W - cm, y + height - CORNER_TOP_H - cm,
-                    width=CORNER_TOP_W, height=CORNER_TOP_H, mask="auto")
-        # Bottom-left
-        c.drawImage(corners["BL"],
-                    x + cm, y + cm,
-                    width=CORNER_BOT_W, height=CORNER_BOT_H, mask="auto")
+        if "TL" in corners:
+            c.drawImage(corners["TL"],
+                        x + cm, y + height - CORNER_TOP_H - cm,
+                        width=CORNER_TOP_W, height=CORNER_TOP_H, mask="auto")
         # Bottom-right
-        c.drawImage(corners["BR"],
-                    x + width - CORNER_BOT_W - cm, y + cm,
-                    width=CORNER_BOT_W, height=CORNER_BOT_H, mask="auto")
+        if "BR" in corners:
+            c.drawImage(corners["BR"],
+                        x + width - CORNER_BOT_W - cm, y + cm,
+                        width=CORNER_BOT_W, height=CORNER_BOT_H, mask="auto")
 
     # ══════════════════════════════════════════════════════════════════════
     # TEXT LAYOUT — 3 baris teks, centered horizontal & vertical
