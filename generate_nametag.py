@@ -45,9 +45,10 @@ TAG_H = 32 * mm
 PAGE_MARGIN_H = 2 * mm    # margin kiri & kanan (side margin)
 PAGE_MARGIN_V = 2 * mm    # margin atas & bawah (top margin)
 
-# Gap antar nametag — dihitung otomatis supaya margin kiri=kanan, atas=bawah
-GAP_H = (PAGE_W - 2 * PAGE_MARGIN_H - COLS * TAG_W) / (COLS - 1)   # ~2mm
-GAP_V = (PAGE_H - 2 * PAGE_MARGIN_V - ROWS * TAG_H) / (ROWS - 1)   # ~1.67mm
+# Gap antar nametag — dihitung otomatis dari sisa ruang setelah margin & label
+# Margin 2mm fix, sisa ruang dibagi rata jadi gap
+GAP_H = (PAGE_W - 2 * PAGE_MARGIN_H - COLS * TAG_W) / (COLS - 1)   # = 2mm
+GAP_V = (PAGE_H - 2 * PAGE_MARGIN_V - ROWS * TAG_H) / (ROWS - 1)   # = ~1.67mm
 
 # Ukuran ornamen sudut pada nametag
 # Atas (bunga kecil) — lebih kecil
@@ -315,47 +316,25 @@ def draw_nametag(c: pdf_canvas.Canvas, x: float, y: float,
     c.setFillColor(COLOR_BG)
     c.rect(x, y, width, height, fill=1, stroke=0)
 
-    # Outer border
-    c.setStrokeColor(COLOR_BORDER_OUTER)
+    # Outer border — opacity 0 (invisible, tapi struktur layout tetap konsisten)
+    c.saveState()
+    c.setStrokeAlpha(0)
     c.setLineWidth(0.8)
     c.rect(x, y, width, height, fill=0, stroke=1)
+    c.restoreState()
 
     # Corner images — hanya Top-Left dan Bottom-Right
-    # cm = CORNER_MARGIN — jarak ornamen dari tepi nametag
     cm = CORNER_MARGIN
     if corners:
-        # Top-left
         if "TL" in corners:
             c.drawImage(corners["TL"],
                         x + cm, y + height - CORNER_TOP_H - cm,
                         width=CORNER_TOP_W, height=CORNER_TOP_H, mask="auto")
-        # Bottom-right
         if "BR" in corners:
             c.drawImage(corners["BR"],
                         x + width - CORNER_BOT_W - cm, y + cm,
                         width=CORNER_BOT_W, height=CORNER_BOT_H, mask="auto")
 
-    # ══════════════════════════════════════════════════════════════════════
-    # TEXT LAYOUT — 3 baris teks, centered horizontal & vertical
-    #
-    # Kalau alamat ada isinya:
-    #   ┌─────────────────────────────────┐
-    #   │         Agus & Partner          │  ← baris 1: nama (auto-fit)
-    #   │        ─────────────────        │  ← garis dekoratif
-    #   │       SMP Negeri 2 Ampel        │  ← baris 2: alamat
-    #   └─────────────────────────────────┘
-    #
-    # Kalau alamat kosong:
-    #   ┌─────────────────────────────────┐
-    #   │         Agus & Partner          │  ← baris 1: nama (auto-fit)
-    #   │        ─────────────────        │  ← garis dekoratif
-    #   │               di                │  ← baris 2: "di"
-    #   │             Tempat              │  ← baris 3: "Tempat"
-    #   └─────────────────────────────────┘
-    # ══════════════════════════════════════════════════════════════════════
-
-    # Lebar area teks = lebar name tag dikurangi margin kiri-kanan
-    # (setengah lebar corner supaya teks tidak tertimpa gambar sudut)
     margin_text = CORNER_BOT_W * 0.5
     usable_w = width - 2 * margin_text
 
@@ -392,8 +371,7 @@ def draw_nametag(c: pdf_canvas.Canvas, x: float, y: float,
                    + gap_line_to_sub + sub_size
                    + gap_di_tempat + sub_size)
 
-    # Geser blok ke bawah agar tidak terlalu dekat ornamen atas
-    # 2 baris (ada alamat) → geser lebih sedikit supaya posisi lebih naik
+    # Vertical offset sama seperti versi original (kompensasi ornamen atas)
     vertical_offset = -1.5 * mm if alamat else -3 * mm
     top_of_block = center_y + total_h / 2 + vertical_offset
 
@@ -453,6 +431,8 @@ def generate_pdf(guests: list[tuple[str, str]], output_path: str,
             # Posisi tag: margin halaman + (kolom/baris * (ukuran tag + gap))
             tag_x = PAGE_MARGIN_H + col_idx * (TAG_W + GAP_H)
             tag_y = PAGE_H - PAGE_MARGIN_V - (row_idx + 1) * TAG_H - row_idx * GAP_V
+            # Baris teratas dikecilkan 2mm supaya muat di area cetak printer
+            current_tag_h = (TAG_H - 2 * mm) if row_idx == 0 else TAG_H
 
             if slot_idx < len(page_guests):
                 name, alamat = page_guests[slot_idx]
@@ -460,13 +440,8 @@ def generate_pdf(guests: list[tuple[str, str]], output_path: str,
                 name, alamat = "", ""
 
             if name:
-                draw_nametag(c, tag_x, tag_y, TAG_W, TAG_H, name, alamat,
+                draw_nametag(c, tag_x, tag_y, TAG_W, current_tag_h, name, alamat,
                              font_bold, font_reg, corners)
-            else:
-                c.setFillColor(COLOR_BG)
-                c.setStrokeColor(COLOR_BORDER_OUTER)
-                c.setLineWidth(0.3)
-                c.rect(tag_x, tag_y, TAG_W, TAG_H, fill=1, stroke=1)
 
         if page_idx < total_pages - 1:
             c.showPage()
