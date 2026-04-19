@@ -37,13 +37,13 @@ COLS     = 3
 ROWS     = 4
 TAGS_PER = COLS * ROWS   # 12 labels per halaman
 
-# Label: 64mm x 32mm
-TAG_W = 64 * mm
-TAG_H = 32 * mm
+# Label: 63mm x 31mm
+TAG_W = 63 * mm
+TAG_H = 31 * mm
 
 # Margin halaman (pinggir kertas)
-PAGE_MARGIN_H = 2 * mm    # margin kiri & kanan (side margin)
-PAGE_MARGIN_V = 2 * mm    # margin atas & bawah (top margin)
+PAGE_MARGIN_H = 3 * mm    # margin kiri & kanan (side margin)
+PAGE_MARGIN_V = 3 * mm    # margin atas & bawah (top margin)
 
 # Gap antar nametag — dihitung otomatis dari sisa ruang setelah margin & label
 # Margin 2mm fix, sisa ruang dibagi rata jadi gap
@@ -59,7 +59,7 @@ CORNER_BOT_W = 19 * mm
 CORNER_BOT_H = 12 * mm
 
 # Jarak ornamen dari tepi nametag (mm)
-CORNER_MARGIN = 1.1 * mm
+CORNER_MARGIN = 1.5 * mm
 
 # Colors — monochrome black on white
 COLOR_BG           = HexColor("#FFFFFF")
