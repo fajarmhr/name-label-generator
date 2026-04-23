@@ -37,12 +37,12 @@ COLS     = 3
 ROWS     = 4
 TAGS_PER = COLS * ROWS   # 12 labels per halaman
 
-# Label: 63mm x 31mm
-TAG_W = 63 * mm
-TAG_H = 31 * mm
+# Label: 62mm x 30mm
+TAG_W = 62 * mm
+TAG_H = 30 * mm
 
 # Margin halaman (pinggir kertas)
-PAGE_MARGIN_H = 3 * mm    # margin kiri & kanan (side margin)
+PAGE_MARGIN_H = 4 * mm    # margin kiri & kanan (side margin)
 PAGE_MARGIN_V = 3 * mm    # margin atas & bawah (top margin)
 
 # Gap antar nametag — dihitung otomatis dari sisa ruang setelah margin & label
@@ -59,7 +59,7 @@ CORNER_BOT_W = 19 * mm
 CORNER_BOT_H = 12 * mm
 
 # Jarak ornamen dari tepi nametag (mm)
-CORNER_MARGIN = 1.5 * mm
+CORNER_MARGIN = 1.75 * mm
 
 # Colors — monochrome black on white
 COLOR_BG           = HexColor("#FFFFFF")
@@ -431,8 +431,8 @@ def generate_pdf(guests: list[tuple[str, str]], output_path: str,
             # Posisi tag: margin halaman + (kolom/baris * (ukuran tag + gap))
             tag_x = PAGE_MARGIN_H + col_idx * (TAG_W + GAP_H)
             tag_y = PAGE_H - PAGE_MARGIN_V - (row_idx + 1) * TAG_H - row_idx * GAP_V
-            # Baris teratas dikecilkan 2mm supaya muat di area cetak printer
-            current_tag_h = (TAG_H - 2 * mm) if row_idx == 0 else TAG_H
+            # Baris teratas dikecilkan 0.5mm supaya muat di area cetak printer
+            current_tag_h = (TAG_H - 0.5 * mm) if row_idx == 0 else TAG_H
 
             if slot_idx < len(page_guests):
                 name, alamat = page_guests[slot_idx]
